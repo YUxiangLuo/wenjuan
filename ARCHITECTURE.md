@@ -27,7 +27,7 @@ This document describes the architecture of this full-stack application template
 │   └── components/         # React Components
 │       └── ui/             # Shadcn UI primitives
 ├── dist/                   # Production build output
-└── todos.sqlite            # Local SQLite database (auto-created)
+└── db.sqlite               # Local SQLite database (auto-created)
 ```
 
 ## Backend Architecture
