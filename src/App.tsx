@@ -3,6 +3,7 @@ import { Login } from "@/pages/Login";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { Dashboard } from "@/pages/admin/Dashboard";
 import { ClassManagement } from "@/pages/admin/ClassManagement";
+import { ClassDetail } from "@/pages/admin/ClassDetail";
 import { UserManagement } from "@/pages/admin/UserManagement";
 import { TeacherLayout } from "@/pages/teacher/TeacherLayout";
 import { TeacherDashboard } from "@/pages/teacher/TeacherDashboard";
@@ -24,8 +25,8 @@ export function App() {
           <Route index element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="classes" element={<ClassManagement />} />
+          <Route path="classes/:id" element={<ClassDetail />} />
           <Route path="teachers" element={<UserManagement role="teacher" />} />
-          <Route path="students" element={<UserManagement role="student" />} />
         </Route>
 
         {/* Teacher Routes */}

@@ -125,6 +125,15 @@ const server = serve({
     },
 
     "/api/users/:id": {
+      async PUT(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
+        const body = await req.json() as any;
+        const update = db.prepare("UPDATE users SET name = ?, email = ? WHERE id = ?");
+        update.run(body.name, body.email || null, req.params.id);
+        return Response.json({ success: true });
+      },
       async DELETE(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -242,8 +251,8 @@ const server = serve({
 
         const body = await req.json() as any;
         const insert = db.prepare("INSERT INTO classes (name, description, teacher_id) VALUES (?, ?, ?)");
-        insert.run(body.name, body.description || null, body.teacher_id);
-        return Response.json({ success: true });
+        const result = insert.run(body.name, body.description || null, body.teacher_id);
+        return Response.json({ success: true, id: result.lastInsertRowid });
       },
       async PUT(req) {
         const auth = await requireAdmin(req);
@@ -255,6 +264,22 @@ const server = serve({
       }
     },
     "/api/classes/:id": {
+      async GET(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
+        const cls = db.query(`
+          SELECT c.*, u.name as teacher_name 
+          FROM classes c 
+          LEFT JOIN users u ON c.teacher_id = u.id
+          WHERE c.id = ?
+        `).get(req.params.id);
+
+        if (!cls) {
+          return Response.json({ error: "Class not found" }, { status: 404 });
+        }
+        return Response.json(cls);
+      },
       async DELETE(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -262,6 +287,87 @@ const server = serve({
         db.run("DELETE FROM classes WHERE id = ?", [req.params.id]);
         db.run("UPDATE users SET class_id = NULL WHERE class_id = ?", [req.params.id]);
         return Response.json({ success: true });
+      }
+    },
+
+    "/api/classes/:id/students": {
+      async GET(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
+        const students = db.query(`
+          SELECT id, username, name, email 
+          FROM users 
+          WHERE class_id = ? AND role = 'student'
+          ORDER BY id DESC
+        `).all(req.params.id);
+        return Response.json(students);
+      },
+      async POST(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
+        const body = await req.json() as any;
+        try {
+          const insert = db.prepare(
+            "INSERT INTO users (username, password, role, name, email, class_id) VALUES (?, ?, 'student', ?, ?, ?)"
+          );
+          insert.run(body.username, body.password || "123456", body.name, body.email || null, req.params.id);
+          return Response.json({ success: true });
+        } catch (e) {
+          return Response.json({ success: false, message: "Username already exists" }, { status: 400 });
+        }
+      }
+    },
+
+    "/api/classes/:id/students/import": {
+      async POST(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
+        const formData = await req.formData();
+        const file = formData.get("file") as File;
+
+        if (!file) {
+          return Response.json({ error: "No file provided" }, { status: 400 });
+        }
+
+        const text = await file.text();
+        const lines = text.trim().split("\n");
+
+        // Skip header row if it looks like a header
+        const startIndex = lines[0]?.toLowerCase().includes("username") ? 1 : 0;
+
+        let imported = 0;
+        let errors: string[] = [];
+
+        const insert = db.prepare(
+          "INSERT INTO users (username, password, role, name, email, class_id) VALUES (?, ?, 'student', ?, ?, ?)"
+        );
+
+        for (let i = startIndex; i < lines.length; i++) {
+          const lineContent = lines[i];
+          if (!lineContent) continue;
+          const line = lineContent.trim();
+          if (!line) continue;
+
+          const parts = line.split(",").map(p => p.trim());
+          const [username, name, email] = parts;
+
+          if (!username || !name) {
+            errors.push(`Line ${i + 1}: Missing username or name`);
+            continue;
+          }
+
+          try {
+            insert.run(username, "123456", name, email || null, req.params.id);
+            imported++;
+          } catch (e) {
+            errors.push(`Line ${i + 1}: Username "${username}" already exists`);
+          }
+        }
+
+        return Response.json({ success: true, imported, errors });
       }
     },
   },

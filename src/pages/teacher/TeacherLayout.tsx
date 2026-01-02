@@ -1,12 +1,13 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { LogOut, LayoutDashboard, BookOpen, Users } from "lucide-react";
+import { clearToken } from "@/lib/useAuth";
 
 export function TeacherLayout() {
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.removeItem("user");
+        clearToken();  // Clears both token and user
         navigate("/login");
     };
 
