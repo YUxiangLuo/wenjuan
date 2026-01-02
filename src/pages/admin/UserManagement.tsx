@@ -27,6 +27,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Trash2, Plus } from "lucide-react";
+import { fetchWithAuth } from "@/lib/useAuth";
 
 type User = {
     id: number;
@@ -70,13 +71,13 @@ export function UserManagement({ role }: UserManagementProps) {
     }, [role]);
 
     const loadUsers = async () => {
-        const res = await fetch(`/api/users?role=${role}`);
+        const res = await fetchWithAuth(`/api/users?role=${role}`);
         const data = await res.json();
         setUsers(data);
     };
 
     const loadClasses = async () => {
-        const res = await fetch("/api/classes");
+        const res = await fetchWithAuth("/api/classes");
         const data = await res.json();
         setClasses(data);
     };
@@ -98,7 +99,7 @@ export function UserManagement({ role }: UserManagementProps) {
                 payload.class_id = parseInt(classId);
             }
 
-            const res = await fetch("/api/users", {
+            const res = await fetchWithAuth("/api/users", {
                 method: "POST",
                 body: JSON.stringify(payload),
             });
@@ -121,7 +122,7 @@ export function UserManagement({ role }: UserManagementProps) {
 
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure?")) return;
-        await fetch(`/api/users/${id}`, { method: "DELETE" });
+        await fetchWithAuth(`/api/users/${id}`, { method: "DELETE" });
         loadUsers();
     };
 

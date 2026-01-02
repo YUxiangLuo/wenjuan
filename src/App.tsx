@@ -1,6 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, Navigate } from "react-router-dom";
-import { Home } from "@/pages/Home";
-import { About } from "@/pages/About";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Login } from "@/pages/Login";
 import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { Dashboard } from "@/pages/admin/Dashboard";
@@ -13,23 +11,12 @@ import { SubjectList } from "@/pages/teacher/SubjectList";
 import { SubjectDetail } from "@/pages/teacher/SubjectDetail";
 import "./index.css";
 
-function NavBar() {
-  return (
-    <nav className="flex justify-center space-x-4 mb-4 p-4">
-      <Link to="/" className="text-sm font-medium hover:underline">Home</Link>
-      <Link to="/about" className="text-sm font-medium hover:underline">About</Link>
-      <Link to="/login" className="text-sm font-medium hover:underline">Login</Link>
-    </nav>
-  );
-}
-
 export function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<div className="container mx-auto p-8"><NavBar /><Home /></div>} />
-        <Route path="/about" element={<div className="container mx-auto p-8"><NavBar /><About /></div>} />
+        {/* Default route redirects to login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Login />} />
 
         {/* Admin Routes */}
@@ -49,11 +36,13 @@ export function App() {
           <Route path="subjects" element={<SubjectList />} />
           <Route path="subjects/:id" element={<SubjectDetail />} />
         </Route>
-        <Route path="/student/*" element={<div>Student Portal (Coming Soon)</div>} />
 
+        {/* Student Routes (Coming Soon) */}
+        <Route path="/student/*" element={<div>Student Portal (Coming Soon)</div>} />
       </Routes>
     </BrowserRouter>
   );
 }
 
 export default App;
+

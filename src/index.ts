@@ -1,6 +1,25 @@
 import { serve } from "bun";
 import { db, type User, type Class, type Subject, type Question } from "./db";
+import { signToken, getAuthUser, type JWTPayload } from "./auth";
 import index from "./index.html";
+
+// Auth middleware helpers
+async function requireAuth(req: Request): Promise<JWTPayload | Response> {
+  const user = await getAuthUser(req);
+  if (!user) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  return user;
+}
+
+async function requireAdmin(req: Request): Promise<JWTPayload | Response> {
+  const result = await requireAuth(req);
+  if (result instanceof Response) return result;
+  if (result.role !== "admin") {
+    return Response.json({ error: "Forbidden: Admin access required" }, { status: 403 });
+  }
+  return result;
+}
 
 const server = serve({
   port: parseInt(process.env.PORT || "3000"),
@@ -24,15 +43,38 @@ const server = serve({
         const { username, password } = await req.json() as any;
         const user = db.query("SELECT * FROM users WHERE username = ? AND password = ?").get(username, password) as User | undefined;
         if (user) {
-          return Response.json({ success: true, user: { id: user.id, username: user.username, role: user.role, name: user.name } });
+          const token = await signToken({
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            name: user.name,
+          });
+          return Response.json({
+            success: true,
+            token,
+            user: { id: user.id, username: user.username, role: user.role, name: user.name }
+          });
         }
         return Response.json({ success: false, message: "Invalid credentials" }, { status: 401 });
       }
     },
 
+    "/api/me": {
+      async GET(req) {
+        const user = await getAuthUser(req);
+        if (!user) {
+          return Response.json({ error: "Unauthorized" }, { status: 401 });
+        }
+        return Response.json({ user });
+      }
+    },
+
     // --- User Management (Admin) ---
     "/api/users": {
-      GET(req) {
+      async GET(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         // Filter by role?
         const url = new URL(req.url);
         const role = url.searchParams.get("role");
@@ -59,6 +101,9 @@ const server = serve({
         return Response.json(users);
       },
       async POST(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         try {
           const insert = db.prepare("INSERT INTO users (username, password, role, name, email, class_id) VALUES (?, ?, ?, ?, ?, ?)");
@@ -69,16 +114,21 @@ const server = serve({
         }
       },
       async PUT(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         const update = db.prepare("UPDATE users SET name = ?, email = ?, password = ?, class_id = ? WHERE id = ?");
-        // Simplified for demo:
         update.run(body.name, body.email || null, body.password, body.class_id, body.id);
         return Response.json({ success: true });
       }
     },
 
     "/api/users/:id": {
-      DELETE(req: any) {
+      async DELETE(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         db.run("DELETE FROM users WHERE id = ?", [req.params.id]);
         return Response.json({ success: true });
       }
@@ -173,7 +223,10 @@ const server = serve({
 
     // --- Class Management (Admin) ---
     "/api/classes": {
-      GET(req) {
+      async GET(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         // Join with teacher name
         const classes = db.query(`
                 SELECT c.*, u.name as teacher_name 
@@ -184,42 +237,33 @@ const server = serve({
         return Response.json(classes);
       },
       async POST(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         const insert = db.prepare("INSERT INTO classes (name, description, teacher_id) VALUES (?, ?, ?)");
         insert.run(body.name, body.description || null, body.teacher_id);
         return Response.json({ success: true });
       },
       async PUT(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         db.run("UPDATE classes SET name = ?, description = ?, teacher_id = ? WHERE id = ?", [body.name, body.description || null, body.teacher_id, body.id]);
         return Response.json({ success: true });
       }
     },
     "/api/classes/:id": {
-      DELETE(req: any) {
+      async DELETE(req: any) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         db.run("DELETE FROM classes WHERE id = ?", [req.params.id]);
-        // Optional: Set students' class_id to null?
         db.run("UPDATE users SET class_id = NULL WHERE class_id = ?", [req.params.id]);
         return Response.json({ success: true });
       }
     },
-
-    // --- Todos (Legacy/Student) -- kept for compatibility or reference if needed
-    "/api/todos": {
-      GET(req) {
-        // Create table if missing (migration strategy is ad-hoc here)
-        db.run(`CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, text TEXT, completed INTEGER DEFAULT 0)`);
-        return Response.json(db.query("SELECT * FROM todos ORDER BY id DESC").all());
-      },
-      async POST(req) {
-        const body = await req.json() as any;
-        db.run(`CREATE TABLE IF NOT EXISTS todos (id INTEGER PRIMARY KEY, text TEXT, completed INTEGER DEFAULT 0)`);
-        if (!body.text) return new Response("Missing text", { status: 400 });
-        const insert = db.prepare("INSERT INTO todos (text) VALUES (?)");
-        const info = insert.run(body.text);
-        return Response.json({ id: info.lastInsertRowid, text: body.text, completed: 0 });
-      },
-    }
   },
 
   development: process.env.NODE_ENV !== "production" ? {

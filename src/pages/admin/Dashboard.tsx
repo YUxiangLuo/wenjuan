@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, School, GraduationCap } from "lucide-react";
+import { fetchWithAuth } from "@/lib/useAuth";
 
 export function Dashboard() {
     const [stats, setStats] = useState({ classes: 0, teachers: 0, students: 0 });
 
     useEffect(() => {
-        fetch("/api/stats")
+        fetchWithAuth("/api/stats")
             .then((res) => res.json())
             .then((data) => setStats(data));
     }, []);

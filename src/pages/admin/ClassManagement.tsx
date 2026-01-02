@@ -27,6 +27,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Trash2, Plus, Edit } from "lucide-react";
+import { fetchWithAuth } from "@/lib/useAuth";
 
 type ClassItem = {
     id: number;
@@ -73,13 +74,13 @@ export function ClassManagement() {
     }, [dialogOpen, editingClass]);
 
     const loadClasses = async () => {
-        const res = await fetch("/api/classes");
+        const res = await fetchWithAuth("/api/classes");
         const data = await res.json();
         setClasses(data);
     };
 
     const loadTeachers = async () => {
-        const res = await fetch("/api/users?role=teacher");
+        const res = await fetchWithAuth("/api/users?role=teacher");
         const data = await res.json();
         setTeachers(data);
     };
@@ -97,12 +98,12 @@ export function ClassManagement() {
             };
 
             if (editingClass) {
-                await fetch("/api/classes", {
+                await fetchWithAuth("/api/classes", {
                     method: "PUT",
                     body: JSON.stringify({ ...payload, id: editingClass.id }),
                 });
             } else {
-                await fetch("/api/classes", {
+                await fetchWithAuth("/api/classes", {
                     method: "POST",
                     body: JSON.stringify(payload),
                 });
@@ -118,7 +119,7 @@ export function ClassManagement() {
 
     const handleDelete = async (id: number) => {
         if (!confirm("Are you sure? Verify no students are linked first.")) return;
-        await fetch(`/api/classes/${id}`, { method: "DELETE" });
+        await fetchWithAuth(`/api/classes/${id}`, { method: "DELETE" });
         loadClasses();
     };
 

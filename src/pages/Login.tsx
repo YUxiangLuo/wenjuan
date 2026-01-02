@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { setToken, setUser } from "@/lib/useAuth";
 
 export function Login() {
     const [username, setUsername] = useState("");
@@ -22,9 +23,9 @@ export function Login() {
             const data = await res.json();
 
             if (data.success) {
-                // In a real app, store token/session here. 
-                // For this demo, we can just navigate based on role and perhaps store user info in localStorage/Context
-                localStorage.setItem("user", JSON.stringify(data.user));
+                // Store JWT token and user info
+                setToken(data.token);
+                setUser(data.user);
 
                 switch (data.user.role) {
                     case "admin":
