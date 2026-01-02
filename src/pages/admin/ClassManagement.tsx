@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Upload, X, Download, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { fetchWithAuth, getToken } from "@/lib/useAuth";
+import { toast } from "sonner";
 
 type ClassItem = {
     id: number;
@@ -190,6 +191,8 @@ export function ClassManagement() {
             const data = await res.json();
 
             if (data.success && data.id) {
+                let successMessage = "班级创建成功！";
+
                 // 2. 如果选择了CSV文件，导入学生
                 if (csvFile) {
                     const formData = new FormData();
@@ -204,17 +207,37 @@ export function ClassManagement() {
 
                     const importData = await importRes.json();
                     if (importData.success) {
-                        const msg = `班级创建成功！导入了 ${importData.imported} 名学生。`;
+                        successMessage += ` 导入了 ${importData.imported} 名学生。`;
                         if (importData.errors?.length) {
-                            alert(msg + `\n\n导入错误:\n${importData.errors.join("\n")}`);
+                            toast.success(successMessage, {
+                                description: (
+                                    <div className="max-h-32 overflow-auto text-xs whitespace-pre-wrap mt-2">
+                                        导入错误:
+                                        {importData.errors.map((err: string, i: number) => (
+                                            <div key={i}>{err}</div>
+                                        ))}
+                                    </div>
+                                ),
+                                duration: 5000,
+                            });
                         } else {
-                            alert(msg);
+                            toast.success(successMessage);
                         }
+                    } else {
+                        toast.success(successMessage); // Class created but import failed logic? Or show mixed?
+                        // Let's handle it by showingsuccess for class, and error for import if needed.
+                        // But here importData.success is false only if major failure?
+                        // Actually if success is false, it means import totally failed.
+                        toast.error("班级创建成功，但导入学生失败: " + (importData.error || "未知错误"));
                     }
+                } else {
+                    toast.success(successMessage);
                 }
 
                 setDialogOpen(false);
                 loadClasses();
+            } else {
+                toast.error(data.message || "创建失败");
             }
         } finally {
             setLoading(false);

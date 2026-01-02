@@ -10,6 +10,7 @@ import { TeacherDashboard } from "@/pages/teacher/TeacherDashboard";
 import { ClassList } from "@/pages/teacher/ClassList";
 import { SubjectList } from "@/pages/teacher/SubjectList";
 import { SubjectDetail } from "@/pages/teacher/SubjectDetail";
+import { Toaster } from "@/components/ui/sonner";
 import "./index.css";
 
 export function App() {
@@ -41,6 +42,7 @@ export function App() {
         {/* Student Routes (Coming Soon) */}
         <Route path="/student/*" element={<div>Student Portal (Coming Soon)</div>} />
       </Routes>
+      <Toaster />
     </BrowserRouter>
   );
 }

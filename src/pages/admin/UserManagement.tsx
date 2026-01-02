@@ -26,8 +26,19 @@ import {
     DialogTrigger,
     DialogFooter,
 } from "@/components/ui/dialog";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Trash2, Plus, Pencil, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { fetchWithAuth } from "@/lib/useAuth";
+import { toast } from "sonner";
 
 type User = {
     id: number;
@@ -75,6 +86,10 @@ export function UserManagement({ role }: UserManagementProps) {
     const [editEmail, setEditEmail] = useState("");
 
     const [loading, setLoading] = useState(false);
+
+    // 删除 Alert 状态
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [deleteId, setDeleteId] = useState<number | null>(null);
 
     const roleLabel = role === 'teacher' ? '教师' : '学生';
 
@@ -192,8 +207,9 @@ export function UserManagement({ role }: UserManagementProps) {
                 setClassId("no-class");
                 setDialogOpen(false);
                 loadUsers();
+                toast.success("创建成功");
             } else {
-                alert("创建失败（用户名可能已存在）");
+                toast.error("创建失败（用户名可能已存在）");
             }
         } finally {
             setLoading(false);
@@ -225,18 +241,27 @@ export function UserManagement({ role }: UserManagementProps) {
                 setEditDialogOpen(false);
                 setEditingUser(null);
                 loadUsers();
+                toast.success("修改成功");
             } else {
-                alert("修改失败");
+                toast.error("修改失败");
             }
         } finally {
             setLoading(false);
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("确定删除？")) return;
-        await fetchWithAuth(`/api/users/${id}`, { method: "DELETE" });
+    const handleDeleteClick = (id: number) => {
+        setDeleteId(id);
+        setAlertOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteId) return;
+        await fetchWithAuth(`/api/users/${deleteId}`, { method: "DELETE" });
         loadUsers();
+        setAlertOpen(false);
+        setDeleteId(null);
+        toast.success("删除成功");
     };
 
     return (
@@ -407,7 +432,7 @@ export function UserManagement({ role }: UserManagementProps) {
                                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(u)}>
                                             <Pencil className="h-4 w-4 text-muted-foreground" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(u.id)}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(u.id)}>
                                             <Trash2 className="h-4 w-4 text-red-500" />
                                         </Button>
                                     </TableCell>
@@ -424,6 +449,23 @@ export function UserManagement({ role }: UserManagementProps) {
                     </Table>
                 </CardContent>
             </Card>
+
+            <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除？</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            确定要删除该{roleLabel}吗？此操作不可撤销。
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                            确认删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

@@ -2,16 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-    Sheet,
-    SheetContent,
-    SheetDescription,
-    SheetHeader,
-    SheetTitle,
-    SheetTrigger,
-} from "@/components/ui/sheet";
 import {
     Table,
     TableBody,
@@ -30,14 +22,25 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
     Select,
     SelectContent,
     SelectItem,
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { ArrowLeft, Plus, Upload, Trash2, Settings, Download } from "lucide-react";
+import { ArrowLeft, Plus, Upload, Trash2, Download } from "lucide-react";
 import { fetchWithAuth, getToken } from "@/lib/useAuth";
+import { toast } from "sonner";
 
 type ClassInfo = {
     id: number;
@@ -71,7 +74,10 @@ export function ClassDetail() {
     const [importDialogOpen, setImportDialogOpen] = useState(false);
     const [importing, setImporting] = useState(false);
     const [saving, setSaving] = useState(false);
-    const [sheetOpen, setSheetOpen] = useState(false);
+
+    // Alert Dialog State
+    const [alertOpen, setAlertOpen] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState<{ type: 'student' | 'class', id?: number } | null>(null);
 
     // Add student form
     const [username, setUsername] = useState("");
@@ -142,16 +148,37 @@ export function ClassDetail() {
             setEmail("");
             setDialogOpen(false);
             loadStudents();
+            toast.success("添加学生成功");
         } else {
             const data = await res.json();
-            alert(data.message || "添加失败");
+            toast.error(data.message || "添加失败");
         }
     };
 
-    const handleDeleteStudent = async (studentId: number) => {
-        if (!confirm("确定删除该学生？")) return;
-        await fetchWithAuth(`/api/users/${studentId}`, { method: "DELETE" });
-        loadStudents();
+    const handleDeleteStudentClick = (studentId: number) => {
+        setDeleteTarget({ type: 'student', id: studentId });
+        setAlertOpen(true);
+    };
+
+    const handleDeleteClassClick = () => {
+        setDeleteTarget({ type: 'class' });
+        setAlertOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!deleteTarget) return;
+
+        if (deleteTarget.type === 'student' && deleteTarget.id) {
+            await fetchWithAuth(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
+            loadStudents();
+            toast.success("删除成功");
+        } else if (deleteTarget.type === 'class') {
+            await fetchWithAuth(`/api/classes/${id}`, { method: "DELETE" });
+            toast.success("班级已删除");
+            navigate("/admin/classes");
+        }
+        setAlertOpen(false);
+        setDeleteTarget(null);
     };
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -172,11 +199,26 @@ export function ClassDetail() {
 
             const data = await res.json();
             if (data.success) {
-                alert(`成功导入 ${data.imported} 名学生${data.errors?.length ? `\n\n错误:\n${data.errors.join("\n")}` : ""}`);
+                const message = `成功导入 ${data.imported} 名学生`;
+                if (data.errors?.length) {
+                    toast.success(message, {
+                        description: (
+                            <div className="max-h-32 overflow-auto text-xs whitespace-pre-wrap mt-2">
+                                错误:
+                                {data.errors.map((err: string, i: number) => (
+                                    <div key={i}>{err}</div>
+                                ))}
+                            </div>
+                        ),
+                        duration: 5000,
+                    });
+                } else {
+                    toast.success(message);
+                }
                 setImportDialogOpen(false);
                 loadStudents();
             } else {
-                alert(data.error || "导入失败");
+                toast.error(data.error || "导入失败");
             }
         } finally {
             setImporting(false);
@@ -212,18 +254,11 @@ export function ClassDetail() {
 
             if (res.ok) {
                 loadClassInfo();
-                setSheetOpen(false);
-                alert("保存成功");
+                toast.success("保存成功");
             }
         } finally {
             setSaving(false);
         }
-    };
-
-    const handleDeleteClass = async () => {
-        if (!confirm("确定删除此班级？班级内的学生将被移除关联。")) return;
-        await fetchWithAuth(`/api/classes/${id}`, { method: "DELETE" });
-        navigate("/admin/classes");
     };
 
     if (loading) {
@@ -237,77 +272,68 @@ export function ClassDetail() {
     return (
         <div className="space-y-6">
             {/* 页头 */}
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <Button variant="outline" size="icon" onClick={() => navigate("/admin/classes")}>
-                        <ArrowLeft className="h-4 w-4" />
-                    </Button>
-                    <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-semibold">{classInfo.name}</h2>
-                        <Badge variant="secondary">ID: {classInfo.id}</Badge>
-                    </div>
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" onClick={() => navigate("/admin/classes")}>
+                    <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-semibold">{classInfo.name}</h2>
+                    <Badge variant="secondary">ID: {classInfo.id}</Badge>
                 </div>
-
-                <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="outline">
-                            <Settings className="mr-2 h-4 w-4" />
-                            班级设置
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent className="flex flex-col">
-                        <SheetHeader>
-                            <SheetTitle>班级设置</SheetTitle>
-                            <SheetDescription>编辑班级信息或删除班级</SheetDescription>
-                        </SheetHeader>
-                        <div className="flex flex-col flex-1 px-4">
-                            <div className="space-y-4">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">班级名称</label>
-                                    <Input
-                                        value={editName}
-                                        onChange={(e) => setEditName(e.target.value)}
-                                        placeholder="班级名称"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">描述</label>
-                                    <Input
-                                        value={editDesc}
-                                        onChange={(e) => setEditDesc(e.target.value)}
-                                        placeholder="班级描述"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">负责教师</label>
-                                    <Select value={editTeacher} onValueChange={setEditTeacher}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="选择教师" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="no-teacher">未分配</SelectItem>
-                                            {teachers.map((t) => (
-                                                <SelectItem key={t.id} value={t.id.toString()}>
-                                                    {t.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <Button type="button" className="w-full mt-2" disabled={saving} onClick={handleSaveClass}>
-                                    {saving ? "保存中..." : "保存更改"}
-                                </Button>
-                            </div>
-                            <div className="mt-auto pb-4">
-                                <Button type="button" variant="outline" className="w-full text-destructive hover:text-destructive" onClick={handleDeleteClass}>
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    删除班级
-                                </Button>
-                            </div>
-                        </div>
-                    </SheetContent>
-                </Sheet>
             </div>
+
+            {/* 班级信息设置 - 上方 Card */}
+            <Card>
+                <CardHeader>
+                    <CardTitle>班级信息</CardTitle>
+                    <CardDescription>管理班级基本信息和教师分配</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">班级名称</label>
+                            <Input
+                                value={editName}
+                                onChange={(e) => setEditName(e.target.value)}
+                                placeholder="请输入班级名称"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">班级描述</label>
+                            <Input
+                                value={editDesc}
+                                onChange={(e) => setEditDesc(e.target.value)}
+                                placeholder="请输入描述（可选）"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">负责教师</label>
+                            <Select value={editTeacher} onValueChange={setEditTeacher}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="选择教师" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="no-teacher">未分配</SelectItem>
+                                    {teachers.map((t) => (
+                                        <SelectItem key={t.id} value={t.id.toString()}>
+                                            {t.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardContent>
+                <CardFooter className="flex justify-between border-t px-6 py-4">
+                    <Button type="button" disabled={saving} onClick={handleSaveClass}>
+                        {saving ? "保存中..." : "保存更改"}
+                    </Button>
+                    <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={handleDeleteClassClick}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        删除班级
+                    </Button>
+                </CardFooter>
+            </Card>
 
             {/* 学生列表 */}
             <Card>
@@ -447,7 +473,7 @@ export function ClassDetail() {
                                         <Button
                                             variant="ghost"
                                             size="icon"
-                                            onClick={() => handleDeleteStudent(student.id)}
+                                            onClick={() => handleDeleteStudentClick(student.id)}
                                         >
                                             <Trash2 className="h-4 w-4 text-red-500" />
                                         </Button>
@@ -465,6 +491,25 @@ export function ClassDetail() {
                     </Table>
                 </CardContent>
             </Card>
+
+            <AlertDialog open={alertOpen} onOpenChange={setAlertOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>确认删除？</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {deleteTarget?.type === 'class'
+                                ? "此操作不可撤销。班级将被删除，班级内的学生将变为无班级状态。"
+                                : "确定要删除该学生吗？此操作不可撤销。"}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>取消</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                            确认删除
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }
