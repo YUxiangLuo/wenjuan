@@ -10,13 +10,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+// Select imports removed
 import {
     Dialog,
     DialogContent,
@@ -50,21 +44,15 @@ type User = {
     class_name?: string;
 };
 
-type ClassItem = {
-    id: number;
-    name: string;
-};
+// ClassItem type removed
 
-interface UserManagementProps {
-    role: "teacher" | "student";
-}
-
+// type SortField = ... (preserved by context usually but since I'm targeting large block): 
 type SortField = "id" | "username" | "name" | "email";
 type SortOrder = "asc" | "desc";
 
-export function UserManagement({ role }: UserManagementProps) {
+export function TeacherManagement() {
+    const role = "teacher";
     const [users, setUsers] = useState<User[]>([]);
-    const [classes, setClasses] = useState<ClassItem[]>([]);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editDialogOpen, setEditDialogOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -79,7 +67,6 @@ export function UserManagement({ role }: UserManagementProps) {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("123456");
-    const [classId, setClassId] = useState<string>("no-class");
 
     // 编辑用户表单
     const [editName, setEditName] = useState("");
@@ -95,22 +82,15 @@ export function UserManagement({ role }: UserManagementProps) {
 
     useEffect(() => {
         loadUsers();
-        if (role === 'student') {
-            loadClasses();
-        }
-    }, [role]);
+    }, []);
 
     const loadUsers = async () => {
-        const res = await fetchWithAuth(`/api/users?role=${role}`);
+        const res = await fetchWithAuth(`/api/admin/users?role=${role}`);
         const data = await res.json();
         setUsers(data);
     };
 
-    const loadClasses = async () => {
-        const res = await fetchWithAuth("/api/classes");
-        const data = await res.json();
-        setClasses(data);
-    };
+    // loadClasses removed
 
     // 过滤和排序
     const filteredUsers = useMemo(() => {
@@ -183,18 +163,15 @@ export function UserManagement({ role }: UserManagementProps) {
 
         setLoading(true);
         try {
-            const payload: any = {
+            const payload = {
                 username,
                 name,
                 email,
                 password,
                 role
             };
-            if (role === 'student' && classId !== "no-class") {
-                payload.class_id = parseInt(classId);
-            }
 
-            const res = await fetchWithAuth("/api/users", {
+            const res = await fetchWithAuth("/api/admin/users", {
                 method: "POST",
                 body: JSON.stringify(payload),
             });
@@ -204,7 +181,6 @@ export function UserManagement({ role }: UserManagementProps) {
                 setName("");
                 setEmail("");
                 setPassword("123456");
-                setClassId("no-class");
                 setDialogOpen(false);
                 loadUsers();
                 toast.success("创建成功");
@@ -229,7 +205,7 @@ export function UserManagement({ role }: UserManagementProps) {
 
         setLoading(true);
         try {
-            const res = await fetchWithAuth(`/api/users/${editingUser.id}`, {
+            const res = await fetchWithAuth(`/api/admin/users/${editingUser.id}`, {
                 method: "PUT",
                 body: JSON.stringify({
                     name: editName,
@@ -257,7 +233,7 @@ export function UserManagement({ role }: UserManagementProps) {
 
     const confirmDelete = async () => {
         if (!deleteId) return;
-        await fetchWithAuth(`/api/users/${deleteId}`, { method: "DELETE" });
+        await fetchWithAuth(`/api/admin/users/${deleteId}`, { method: "DELETE" });
         loadUsers();
         setAlertOpen(false);
         setDeleteId(null);
@@ -308,22 +284,6 @@ export function UserManagement({ role }: UserManagementProps) {
                                     onChange={(e) => setEmail(e.target.value)}
                                 />
                             </div>
-                            {role === 'student' && (
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">分配班级</label>
-                                    <Select value={classId} onValueChange={setClassId}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="选择班级" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="no-class">暂不分配</SelectItem>
-                                            {classes.map(c => (
-                                                <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                            )}
                             <DialogFooter>
                                 <Button type="submit" disabled={loading}>
                                     {loading ? "创建中..." : "创建"}
@@ -416,7 +376,6 @@ export function UserManagement({ role }: UserManagementProps) {
                                         <SortIcon field="email" />
                                     </button>
                                 </TableHead>
-                                {role === 'student' && <TableHead>班级</TableHead>}
                                 <TableHead className="text-right">操作</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -427,7 +386,6 @@ export function UserManagement({ role }: UserManagementProps) {
                                     <TableCell className="py-4">{u.username}</TableCell>
                                     <TableCell className="py-4 font-medium">{u.name}</TableCell>
                                     <TableCell className="py-4 text-muted-foreground">{u.email || "-"}</TableCell>
-                                    {role === 'student' && <TableCell className="py-4">{u.class_name || '-'}</TableCell>}
                                     <TableCell className="text-right py-4">
                                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(u)}>
                                             <Pencil className="h-4 w-4 text-muted-foreground" />
@@ -440,7 +398,7 @@ export function UserManagement({ role }: UserManagementProps) {
                             ))}
                             {filteredUsers.length === 0 && (
                                 <TableRow>
-                                    <TableCell colSpan={role === 'student' ? 6 : 5} className="text-center text-muted-foreground py-8">
+                                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                                         {searchTerm ? `没有找到匹配的${roleLabel}` : `暂无${roleLabel}`}
                                     </TableCell>
                                 </TableRow>
@@ -466,6 +424,6 @@ export function UserManagement({ role }: UserManagementProps) {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
-        </div>
+        </div >
     );
 }

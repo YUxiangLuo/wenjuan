@@ -4,7 +4,7 @@ import { AdminLayout } from "@/pages/admin/AdminLayout";
 import { Dashboard } from "@/pages/admin/Dashboard";
 import { ClassManagement } from "@/pages/admin/ClassManagement";
 import { ClassDetail } from "@/pages/admin/ClassDetail";
-import { UserManagement } from "@/pages/admin/UserManagement";
+import { TeacherManagement } from "@/pages/admin/TeacherManagement";
 import { TeacherLayout } from "@/pages/teacher/TeacherLayout";
 import { TeacherDashboard } from "@/pages/teacher/TeacherDashboard";
 import { ClassList } from "@/pages/teacher/ClassList";
@@ -27,7 +27,7 @@ export function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="classes" element={<ClassManagement />} />
           <Route path="classes/:id" element={<ClassDetail />} />
-          <Route path="teachers" element={<UserManagement role="teacher" />} />
+          <Route path="teachers" element={<TeacherManagement />} />
         </Route>
 
         {/* Teacher Routes */}

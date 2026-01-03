@@ -21,6 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Save, Plus, Trash2, FileText, Settings, List } from "lucide-react";
+import { fetchWithAuth } from "@/lib/useAuth";
 
 type Subject = {
     id: number;
@@ -58,13 +59,13 @@ export function SubjectDetail() {
     }, [id]);
 
     const loadSubject = async () => {
-        const res = await fetch(`/api/subjects/${id}`);
+        const res = await fetchWithAuth(`/api/teacher/subjects/${id}`);
         const data = await res.json();
         setSubject(data);
     };
 
     const loadQuestions = async () => {
-        const res = await fetch(`/api/subjects/${id}/questions`);
+        const res = await fetchWithAuth(`/api/teacher/subjects/${id}/questions`);
         const data = await res.json();
         setQuestions(data);
     };
@@ -73,12 +74,12 @@ export function SubjectDetail() {
         e.preventDefault();
         if (!subject) return;
         setLoading(true);
-        await fetch(`/api/subjects/${id}`, {
+        await fetchWithAuth(`/api/teacher/subjects/${id}`, {
             method: "PUT",
             body: JSON.stringify(subject)
         });
         setLoading(false);
-        alert("Saved!");
+        alert("已保存!");
     };
 
     const handleAddQuestion = async (e: React.FormEvent) => {
@@ -90,7 +91,7 @@ export function SubjectDetail() {
             optionsArray = qOptions.split(',').map(s => s.trim()).filter(Boolean);
         }
 
-        await fetch(`/api/subjects/${id}/questions`, {
+        await fetchWithAuth(`/api/teacher/subjects/${id}/questions`, {
             method: "POST",
             body: JSON.stringify({
                 text: qText,
@@ -106,14 +107,14 @@ export function SubjectDetail() {
     };
 
     const handleDeleteQuestion = async (qid: number) => {
-        if (!confirm("Delete question?")) return;
-        await fetch(`/api/questions/${qid}`, { method: "DELETE" });
+        if (!confirm("确定删除问题吗?")) return;
+        await fetchWithAuth(`/api/teacher/questions/${qid}`, { method: "DELETE" });
         loadQuestions();
     }
 
     const handleDeleteSubject = async () => {
-        if (!confirm("Are you sure you want to delete this subject? This action cannot be undone.")) return;
-        await fetch(`/api/subjects/${id}`, { method: "DELETE" });
+        if (!confirm("您确定要删除此课题吗？此操作无法撤销。")) return;
+        await fetchWithAuth(`/api/teacher/subjects/${id}`, { method: "DELETE" });
         navigate("/teacher/subjects");
     };
 
@@ -124,14 +125,14 @@ export function SubjectDetail() {
         const updatedSubject = { ...subject, status: newStatus };
         setSubject(updatedSubject);
 
-        await fetch(`/api/subjects/${id}`, {
+        await fetchWithAuth(`/api/teacher/subjects/${id}`, {
             method: "PUT",
             body: JSON.stringify(updatedSubject)
         });
         setLoading(false);
     };
 
-    if (!subject) return <div>Loading...</div>;
+    if (!subject) return <div>加载中...</div>;
 
     return (
         <div className="space-y-6">
@@ -148,154 +149,175 @@ export function SubjectDetail() {
                 </div>
                 <div className="ml-auto flex gap-2">
                     <Button variant="destructive" onClick={handleDeleteSubject}>
-                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                        <Trash2 className="h-4 w-4 mr-2" /> 删除
                     </Button>
                     {subject.status === 'draft' ? (
-                        <Button onClick={() => handleStatusChange('published')}>Publish</Button>
+                        <Button onClick={() => handleStatusChange('published')}>发布</Button>
                     ) : (
-                        <Button variant="outline" onClick={() => handleStatusChange('draft')}>Revert to Draft</Button>
+                        <Button variant="outline" onClick={() => handleStatusChange('draft')}>撤回草稿</Button>
                     )}
                 </div>
             </div>
 
             {/* Tabs Navigation */}
-            <div className="flex border-b">
-                <button
-                    className={`px-4 py-2 border-b-2 font-medium text-sm ${activeTab === 'overview' ? 'border-black text-black' : 'border-transparent text-gray-500'}`}
-                    onClick={() => setActiveTab('overview')}
-                >
-                    <Settings className="inline-block w-4 h-4 mr-2" /> Overview
-                </button>
-                <button
-                    className={`px-4 py-2 border-b-2 font-medium text-sm ${activeTab === 'questions' ? 'border-black text-black' : 'border-transparent text-gray-500'}`}
-                    onClick={() => setActiveTab('questions')}
-                >
-                    <List className="inline-block w-4 h-4 mr-2" /> Question Bank
-                </button>
-                <button
-                    className={`px-4 py-2 border-b-2 font-medium text-sm ${activeTab === 'resources' ? 'border-black text-black' : 'border-transparent text-gray-500'}`}
-                    onClick={() => setActiveTab('resources')}
-                >
-                    <FileText className="inline-block w-4 h-4 mr-2" /> Resources
-                </button>
-            </div>
+            {/* Tabs Navigation */}
+            {/* Premium Underline Tabs */}
+            <div className="w-full">
+                <div className="flex items-center gap-8 border-b w-full mb-6">
+                    <button
+                        onClick={() => setActiveTab('overview')}
+                        className={`pb-3 pt-2 text-sm font-medium transition-all flex items-center gap-2 border-b-2 hover:text-primary 
+                        ${activeTab === 'overview' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                    >
+                        <Settings className="w-4 h-4" /> 概览
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('questions')}
+                        className={`pb-3 pt-2 text-sm font-medium transition-all flex items-center gap-2 border-b-2 hover:text-primary 
+                        ${activeTab === 'questions' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                    >
+                        <List className="w-4 h-4" /> 题库
+                        <Badge variant="secondary" className="ml-1 px-1 h-5 text-[10px]">{questions.length}</Badge>
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('resources')}
+                        className={`pb-3 pt-2 text-sm font-medium transition-all flex items-center gap-2 border-b-2 hover:text-primary 
+                        ${activeTab === 'resources' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'}`}
+                    >
+                        <FileText className="w-4 h-4" /> 资源
+                    </button>
+                </div>
 
-            {/* Tab Content */}
-            <div className="pt-4">
-                {activeTab === 'overview' && (
-                    <Card>
-                        <CardHeader><CardTitle>Subject Settings</CardTitle></CardHeader>
-                        <CardContent>
-                            <form onSubmit={handleUpdateSubject} className="space-y-4 max-w-2xl">
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Subject Name</label>
-                                    <Input value={subject.name} onChange={e => setSubject({ ...subject, name: e.target.value })} />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Description</label>
-                                    <Input value={subject.description || ""} onChange={e => setSubject({ ...subject, description: e.target.value })} />
-                                </div>
-                                <div className="space-y-2">
-                                    <label className="text-sm font-medium">Background Information</label>
-                                    {/* Fallback to Input if Textarea is missing, but assuming generic Input works for now or create simple textarea */}
-                                    <textarea
-                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                        value={subject.background || ""}
-                                        onChange={e => setSubject({ ...subject, background: e.target.value })}
-                                    />
-                                </div>
-                                <Button type="submit" disabled={loading}><Save className="w-4 h-4 mr-2" /> Save Changes</Button>
-                            </form>
-                        </CardContent>
-                    </Card>
-                )}
+                {/* Tab Content */}
+                <div className="space-y-6 animate-in fade-in-50 duration-300">
+                    {activeTab === 'overview' && (
+                        <Card>
+                            <CardHeader><CardTitle>课题设置</CardTitle></CardHeader>
+                            <CardContent>
+                                <form onSubmit={handleUpdateSubject} className="space-y-4 max-w-2xl">
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">课题名称</label>
+                                        <Input value={subject.name} onChange={e => setSubject({ ...subject, name: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">描述</label>
+                                        <Input value={subject.description || ""} onChange={e => setSubject({ ...subject, description: e.target.value })} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <label className="text-sm font-medium">背景信息</label>
+                                        <Textarea
+                                            value={subject.background || ""}
+                                            onChange={e => setSubject({ ...subject, background: e.target.value })}
+                                            className="min-h-[100px]"
+                                        />
+                                    </div>
+                                    <Button type="submit" disabled={loading}><Save className="w-4 h-4 mr-2" /> 保存更改</Button>
+                                </form>
+                            </CardContent>
+                        </Card>
+                    )}
 
-                {activeTab === 'questions' && (
-                    <div className="space-y-4">
-                        <div className="flex justify-between">
-                            <h3 className="text-lg font-medium">Questions ({questions.length})</h3>
-                            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm"><Plus className="w-4 h-4 mr-2" /> Add Question</Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Add Question</DialogTitle>
-                                    </DialogHeader>
-                                    <form onSubmit={handleAddQuestion} className="space-y-4">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Question Text</label>
-                                            <Input value={qText} onChange={e => setQText(e.target.value)} required />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium">Type</label>
-                                            <Select value={qType} onValueChange={setQType}>
-                                                <SelectTrigger>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="single">Single Choice</SelectItem>
-                                                    <SelectItem value="multi">Multiple Choice</SelectItem>
-                                                    <SelectItem value="text">Text Input</SelectItem>
-                                                    <SelectItem value="scale">Likert Scale (1-5)</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        {(qType === 'single' || qType === 'multi') && (
+                    {activeTab === 'questions' && (
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center bg-muted/30 p-4 rounded-lg border">
+                                <div>
+                                    <h3 className="text-lg font-medium">问题列表</h3>
+                                    <p className="text-sm text-muted-foreground">管理该课题的所有问题。</p>
+                                </div>
+                                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button><Plus className="w-4 h-4 mr-2" /> 添加问题</Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>添加问题</DialogTitle>
+                                        </DialogHeader>
+                                        <form onSubmit={handleAddQuestion} className="space-y-4">
                                             <div className="space-y-2">
-                                                <label className="text-sm font-medium">Options (comma separated)</label>
-                                                <Input value={qOptions} onChange={e => setQOptions(e.target.value)} placeholder="Option A, Option B, Option C" />
+                                                <label className="text-sm font-medium">问题内容</label>
+                                                <Input value={qText} onChange={e => setQText(e.target.value)} required />
                                             </div>
-                                        )}
-                                        <DialogFooter>
-                                            <Button type="submit">Add</Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-
-                        <div className="grid gap-4">
-                            {questions.map((q, idx) => (
-                                <Card key={q.id}>
-                                    <CardContent className="pt-6 flex justify-between items-start">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <Badge variant="outline">Q{idx + 1}</Badge>
-                                                <Badge>{q.type}</Badge>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">类型</label>
+                                                <Select value={qType} onValueChange={setQType}>
+                                                    <SelectTrigger>
+                                                        <SelectValue />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        <SelectItem value="single">单选题</SelectItem>
+                                                        <SelectItem value="multi">多选题</SelectItem>
+                                                        <SelectItem value="text">文本填空</SelectItem>
+                                                        <SelectItem value="scale">量表题 (1-5)</SelectItem>
+                                                    </SelectContent>
+                                                </Select>
                                             </div>
-                                            <p className="font-medium text-lg">{q.text}</p>
-                                            {q.options && (
-                                                <p className="text-sm text-gray-500 mt-2">
-                                                    Options: {JSON.parse(q.options).join(", ")}
-                                                </p>
+                                            {(qType === 'single' || qType === 'multi') && (
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-medium">选项 (逗号分隔)</label>
+                                                    <Input value={qOptions} onChange={e => setQOptions(e.target.value)} placeholder="选项A, 选项B, 选项C" />
+                                                </div>
                                             )}
-                                        </div>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
-                                            <Trash2 className="h-4 w-4 text-red-500" />
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                            {questions.length === 0 && <p className="text-gray-500">No questions yet.</p>}
-                        </div>
-                    </div>
-                )}
-
-                {activeTab === 'resources' && (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Resources & Files</CardTitle>
-                            <CardDescription>Upload necessary files for this subject (e.g. data for students to analyze).</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="border-2 border-dashed rounded-lg p-10 text-center text-gray-400">
-                                <FileText className="w-10 h-10 mx-auto mb-2" />
-                                <p>File upload functionality coming soon.</p>
+                                            <DialogFooter>
+                                                <Button type="submit">添加</Button>
+                                            </DialogFooter>
+                                        </form>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
+
+                            <div className="grid gap-4">
+                                {questions.map((q, idx) => (
+                                    <Card key={q.id} className="hover:border-primary/50 transition-colors">
+                                        <CardContent className="pt-6 flex justify-between items-start">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <Badge variant="secondary">Q{idx + 1}</Badge>
+                                                    <Badge variant="outline">{q.type}</Badge>
+                                                </div>
+                                                <p className="font-medium text-lg">{q.text}</p>
+                                                {q.options && (
+                                                    <p className="text-sm text-muted-foreground mt-2 bg-muted/50 p-2 rounded-md inline-block">
+                                                        {JSON.parse(q.options).join(", ")}
+                                                    </p>
+                                                )}
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => handleDeleteQuestion(q.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                                {questions.length === 0 && (
+                                    <div className="text-center py-16 border-2 border-dashed rounded-lg bg-muted/10">
+                                        <div className="bg-muted inline-flex p-3 rounded-full mb-4">
+                                            <List className="w-6 h-6 text-muted-foreground" />
+                                        </div>
+                                        <h3 className="text-lg font-medium">暂无问题</h3>
+                                        <p className="text-muted-foreground mb-4">开始构建您的问卷或实验题库。</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'resources' && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>资源与文件</CardTitle>
+                                <CardDescription>上传该课题所需的文件（如供学生分析的数据）。</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="border-2 border-dashed rounded-lg p-16 text-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer group">
+                                    <div className="bg-muted inline-flex p-4 rounded-full mb-4 group-hover:bg-background transition-colors">
+                                        <FileText className="w-8 h-8 opacity-50" />
+                                    </div>
+                                    <p className="font-medium text-foreground">点击或拖拽上传文件</p>
+                                    <p className="text-xs mt-1 text-muted-foreground">(功能开发中)</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
             </div>
         </div>
     );

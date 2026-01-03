@@ -105,7 +105,7 @@ export function ClassDetail() {
 
     const loadClassInfo = async () => {
         try {
-            const res = await fetchWithAuth(`/api/classes/${id}`);
+            const res = await fetchWithAuth(`/api/admin/classes/${id}`);
             if (res.ok) {
                 const data = await res.json();
                 setClassInfo(data);
@@ -118,7 +118,7 @@ export function ClassDetail() {
     };
 
     const loadStudents = async () => {
-        const res = await fetchWithAuth(`/api/classes/${id}/students`);
+        const res = await fetchWithAuth(`/api/admin/classes/${id}/students`);
         if (res.ok) {
             const data = await res.json();
             setStudents(data);
@@ -126,7 +126,7 @@ export function ClassDetail() {
     };
 
     const loadTeachers = async () => {
-        const res = await fetchWithAuth("/api/users?role=teacher");
+        const res = await fetchWithAuth("/api/admin/users?role=teacher");
         if (res.ok) {
             const data = await res.json();
             setTeachers(data);
@@ -137,7 +137,7 @@ export function ClassDetail() {
         e.preventDefault();
         if (!username.trim() || !name.trim()) return;
 
-        const res = await fetchWithAuth(`/api/classes/${id}/students`, {
+        const res = await fetchWithAuth(`/api/admin/classes/${id}/students`, {
             method: "POST",
             body: JSON.stringify({ username, name, email }),
         });
@@ -169,11 +169,11 @@ export function ClassDetail() {
         if (!deleteTarget) return;
 
         if (deleteTarget.type === 'student' && deleteTarget.id) {
-            await fetchWithAuth(`/api/users/${deleteTarget.id}`, { method: "DELETE" });
+            await fetchWithAuth(`/api/admin/users/${deleteTarget.id}`, { method: "DELETE" });
             loadStudents();
             toast.success("删除成功");
         } else if (deleteTarget.type === 'class') {
-            await fetchWithAuth(`/api/classes/${id}`, { method: "DELETE" });
+            await fetchWithAuth(`/api/admin/classes/${id}`, { method: "DELETE" });
             toast.success("班级已删除");
             navigate("/admin/classes");
         }
@@ -191,7 +191,7 @@ export function ClassDetail() {
             formData.append("file", file);
 
             const token = getToken();
-            const res = await fetch(`/api/classes/${id}/students/import`, {
+            const res = await fetch(`/api/admin/classes/${id}/students/import`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` },
                 body: formData,
@@ -242,7 +242,7 @@ export function ClassDetail() {
 
         setSaving(true);
         try {
-            const res = await fetchWithAuth("/api/classes", {
+            const res = await fetchWithAuth("/api/admin/classes", {
                 method: "PUT",
                 body: JSON.stringify({
                     id: Number(id),

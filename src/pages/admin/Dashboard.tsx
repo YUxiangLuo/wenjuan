@@ -12,16 +12,26 @@ type ClassItem = {
     teacher_name?: string;
 };
 
+const CARD_COLORS = [
+    { border: "bg-blue-500", bg: "bg-blue-50", text: "text-blue-700" },
+    { border: "bg-emerald-500", bg: "bg-emerald-50", text: "text-emerald-700" },
+    { border: "bg-amber-500", bg: "bg-amber-50", text: "text-amber-700" },
+    { border: "bg-rose-500", bg: "bg-rose-50", text: "text-rose-700" },
+    { border: "bg-violet-500", bg: "bg-violet-50", text: "text-violet-700" },
+];
+
+const getColor = (id: number) => CARD_COLORS[id % CARD_COLORS.length]!;
+
 export function Dashboard() {
     const [stats, setStats] = useState({ classes: 0, teachers: 0, students: 0 });
     const [classes, setClasses] = useState<ClassItem[]>([]);
 
     useEffect(() => {
-        fetchWithAuth("/api/stats")
+        fetchWithAuth("/api/admin/stats")
             .then((res) => res.json())
             .then((data) => setStats(data));
 
-        fetchWithAuth("/api/classes")
+        fetchWithAuth("/api/admin/classes")
             .then((res) => res.json())
             .then((data) => setClasses(data));
     }, []);
@@ -101,32 +111,35 @@ export function Dashboard() {
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {classes.map((cls) => (
-                            <Card key={cls.id} className="hover:shadow-md transition-all hover:border-primary/50">
-                                <CardHeader className="pb-3">
-                                    <div className="flex items-start justify-between">
-                                        <CardTitle className="text-lg">{cls.name}</CardTitle>
-                                        <Badge variant="outline" className="text-xs">
-                                            ID: {cls.id}
-                                        </Badge>
-                                    </div>
-                                    <CardDescription>
-                                        {cls.description || "暂无描述"}
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="pt-0">
-                                    <div className="flex items-center gap-2">
-                                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                                            <Users className="h-3 w-3 text-primary" />
+                    <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                        {classes.map((cls) => {
+                            const color = getColor(cls.id);
+                            return (
+                                <Card key={cls.id} className="hover:shadow-md transition-all border-t-0 overflow-hidden relative group cursor-pointer hover:scale-105 active:scale-95 duration-200">
+                                    {/* Color Strip */}
+                                    <div className={`absolute top-0 left-0 right-0 h-1 ${color.border}`} />
+
+                                    <div className="p-3 pt-3">
+                                        <div className="flex items-center gap-2 mb-1.5">
+                                            <div className={`h-1.5 w-1.5 rounded-full ${color.border}`} />
+                                            <div className="font-medium text-sm truncate" title={cls.name}>
+                                                {cls.name}
+                                            </div>
                                         </div>
-                                        <span className="text-sm text-muted-foreground">
-                                            {cls.teacher_name || "未分配教师"}
-                                        </span>
+
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                                                <Users className="h-3 w-3 opacity-70" />
+                                                <span>{cls.teacher_name || "未分配"}</span>
+                                            </div>
+                                            <span className="text-[10px] text-muted-foreground/50 font-mono">
+                                                #{cls.id}
+                                            </span>
+                                        </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        ))}
+                                </Card>
+                            );
+                        })}
                     </div>
                 )}
             </div>

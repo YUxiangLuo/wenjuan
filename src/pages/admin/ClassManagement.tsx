@@ -82,13 +82,13 @@ export function ClassManagement() {
     }, [dialogOpen]);
 
     const loadClasses = async () => {
-        const res = await fetchWithAuth("/api/classes");
+        const res = await fetchWithAuth("/api/admin/classes");
         const data = await res.json();
         setClasses(data);
     };
 
     const loadTeachers = async () => {
-        const res = await fetchWithAuth("/api/users?role=teacher");
+        const res = await fetchWithAuth("/api/admin/users?role=teacher");
         const data = await res.json();
         setTeachers(data);
     };
@@ -179,7 +179,7 @@ export function ClassManagement() {
         setLoading(true);
         try {
             // 1. 创建班级
-            const res = await fetchWithAuth("/api/classes", {
+            const res = await fetchWithAuth("/api/admin/classes", {
                 method: "POST",
                 body: JSON.stringify({
                     name: className,
@@ -199,7 +199,7 @@ export function ClassManagement() {
                     formData.append("file", csvFile);
 
                     const token = getToken();
-                    const importRes = await fetch(`/api/classes/${data.id}/students/import`, {
+                    const importRes = await fetch(`/api/admin/classes/${data.id}/students/import`, {
                         method: "POST",
                         headers: { "Authorization": `Bearer ${token}` },
                         body: formData,

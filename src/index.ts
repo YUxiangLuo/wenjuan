@@ -21,19 +21,33 @@ async function requireAdmin(req: Request): Promise<JWTPayload | Response> {
   return result;
 }
 
+async function requireTeacher(req: Request): Promise<JWTPayload | Response> {
+  const result = await requireAuth(req);
+  if (result instanceof Response) return result;
+  // Allow admin to act as teacher? Or strictly teacher? Let's be strict for now or allow admin.
+  // Common practice: Admin > User. But here let's require 'teacher'.
+  if (result.role !== "teacher") {
+    return Response.json({ error: "Forbidden: Teacher access required" }, { status: 403 });
+  }
+  return result;
+}
+
 const server = serve({
   port: parseInt(process.env.PORT || "3000"),
   routes: {
     "/*": index,
 
     // --- Authentication ---
-    "/api/stats": {
-      GET(req) {
+    "/api/admin/stats": {
+      async GET(req) {
+        const auth = await requireAdmin(req);
+        if (auth instanceof Response) return auth;
+
         const counts = db.query(`
                 SELECT 
                     (SELECT COUNT(*) FROM classes) as classes,
                     (SELECT COUNT(*) FROM users WHERE role = 'teacher') as teachers,
-                    (SELECT COUNT(*) FROM users WHERE role = 'student') as students
+                    (SELECT COUNT(*) FROM users WHERE role = 'student' AND class_id IS NOT NULL) as students
             `).get() as any;
         return Response.json(counts);
       }
@@ -70,7 +84,7 @@ const server = serve({
     },
 
     // --- User Management (Admin) ---
-    "/api/users": {
+    "/api/admin/users": {
       async GET(req) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -123,8 +137,7 @@ const server = serve({
         return Response.json({ success: true });
       }
     },
-
-    "/api/users/:id": {
+    "/api/admin/users/:id": {
       async PUT(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -145,7 +158,10 @@ const server = serve({
 
     // --- Teacher Portal ---
     "/api/teacher/classes": {
-      GET(req) {
+      async GET(req) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const url = new URL(req.url);
         const teacherId = url.searchParams.get("teacher_id");
         if (!teacherId) return Response.json([]);
@@ -161,8 +177,11 @@ const server = serve({
     },
 
     // --- Subject Management ---
-    "/api/subjects": {
-      GET(req) {
+    "/api/teacher/subjects": {
+      async GET(req) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const url = new URL(req.url);
         const teacherId = url.searchParams.get("teacher_id");
         let query = "SELECT * FROM subjects";
@@ -175,6 +194,9 @@ const server = serve({
         return Response.json(db.query(query).all(...params) as Subject[]);
       },
       async POST(req) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         const insert = db.prepare(`
                 INSERT INTO subjects (name, description, background, teacher_id, status) 
@@ -184,11 +206,17 @@ const server = serve({
         return Response.json({ success: true });
       }
     },
-    "/api/subjects/:id": {
-      GET(req: any) {
+    "/api/teacher/subjects/:id": {
+      async GET(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         return Response.json(db.query("SELECT * FROM subjects WHERE id = ?").get(req.params.id));
       },
       async PUT(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         const update = db.prepare(`
                 UPDATE subjects SET name = ?, description = ?, background = ?, status = ? 
@@ -197,7 +225,10 @@ const server = serve({
         update.run(body.name, body.description, body.background, body.status, req.params.id);
         return Response.json({ success: true });
       },
-      DELETE(req: any) {
+      async DELETE(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         db.run("DELETE FROM subjects WHERE id = ?", [req.params.id]);
         // Cascade delete questions handled by DB or manually:
         db.run("DELETE FROM questions WHERE subject_id = ?", [req.params.id]);
@@ -206,12 +237,18 @@ const server = serve({
     },
 
     // --- Question Management ---
-    "/api/subjects/:id/questions": {
-      GET(req: any) {
+    "/api/teacher/subjects/:id/questions": {
+      async GET(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const questions = db.query("SELECT * FROM questions WHERE subject_id = ? ORDER BY id ASC").all(req.params.id) as Question[];
         return Response.json(questions);
       },
       async POST(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         const body = await req.json() as any;
         const insert = db.prepare(`
                 INSERT INTO questions (subject_id, text, type, options) 
@@ -223,15 +260,18 @@ const server = serve({
         return Response.json({ success: true });
       }
     },
-    "/api/questions/:id": {
-      DELETE(req: any) {
+    "/api/teacher/questions/:id": {
+      async DELETE(req: any) {
+        const auth = await requireTeacher(req);
+        if (auth instanceof Response) return auth;
+
         db.run("DELETE FROM questions WHERE id = ?", [req.params.id]);
         return Response.json({ success: true });
       }
     },
 
     // --- Class Management (Admin) ---
-    "/api/classes": {
+    "/api/admin/classes": {
       async GET(req) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -263,7 +303,7 @@ const server = serve({
         return Response.json({ success: true });
       }
     },
-    "/api/classes/:id": {
+    "/api/admin/classes/:id": {
       async GET(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -289,8 +329,7 @@ const server = serve({
         return Response.json({ success: true });
       }
     },
-
-    "/api/classes/:id/students": {
+    "/api/admin/classes/:id/students": {
       async GET(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
@@ -319,8 +358,7 @@ const server = serve({
         }
       }
     },
-
-    "/api/classes/:id/students/import": {
+    "/api/admin/classes/:id/students/import": {
       async POST(req: any) {
         const auth = await requireAdmin(req);
         if (auth instanceof Response) return auth;
